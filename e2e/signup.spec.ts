@@ -19,7 +19,7 @@ test('sign up redirects to dashboard', async ({ page }) => {
   await page.getByRole('button', { name: '新規登録' }).click();
 
   // 基本情報
-  const uniqueEmail = `test-${Date.now()}@example.com`;
+  const uniqueEmail = `test-${Date.now()}@gmail.com`;
   await page.getByLabel('メールアドレス').fill(uniqueEmail);
   await page.getByLabel('パスワード').fill('password123');
   await page.getByLabel('パスワード確認').fill('password123');

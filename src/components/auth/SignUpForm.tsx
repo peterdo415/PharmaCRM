@@ -406,9 +406,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
         }
       }
 
-      // 登録成功後、ダッシュボードを表示
-      window.location.href = '/';
-      
     } catch (err: any) {
       console.error('Sign up error:', err);
       
