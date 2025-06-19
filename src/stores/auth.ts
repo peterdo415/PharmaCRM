@@ -15,7 +15,12 @@ interface AuthStore {
   setInitialized: (initialized: boolean) => void;
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, role?: 'pharmacy_admin' | 'pharmacist', pharmacyId?: string) => Promise<{ user: User | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    role?: 'pharmacy_admin' | 'pharmacist',
+    pharmacyId?: string
+  ) => Promise<{ user: User | null; session: Session | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -116,37 +121,51 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true });
       const { user, session } = await authService.signUp(email, password, role, pharmacyId);
-      
-      // 新規登録時はセッションが作成される場合があるので、それを保存
-      if (user && session) {
+
+      let activeUser = user;
+      let activeSession = session;
+
+      // セッションが返されない場合は自動的にサインインを試みる
+      if (activeUser && !activeSession) {
         try {
-          const profile = await authService.getProfile(user.id);
-          set({ 
-            user, 
-            session, 
+          const signInResult = await authService.signIn(email, password);
+          activeUser = signInResult.user;
+          activeSession = signInResult.session;
+        } catch (signInError) {
+          console.error('Auto sign in after sign up failed:', signInError);
+        }
+      }
+
+      // 新規登録時はセッションが作成される場合があるので、それを保存
+      if (activeUser && activeSession) {
+        try {
+          const profile = await authService.getProfile(activeUser.id);
+          set({
+            user: activeUser,
+            session: activeSession,
             profile,
             initialized: true
           });
         } catch (profileError) {
           console.error('Failed to load profile after sign up:', profileError);
-          set({ 
-            user, 
-            session, 
+          set({
+            user: activeUser,
+            session: activeSession,
             profile: null,
             initialized: true
           });
         }
       } else {
         // セッションが作成されなかった場合（メール確認待ちなど）
-        set({ 
-          user: null, 
-          session: null, 
+        set({
+          user: null,
+          session: null,
           profile: null,
           initialized: true
         });
       }
 
-      return { user };
+      return { user: activeUser, session: activeSession };
     } catch (error) {
       console.error('Sign up failed:', error);
       throw error;

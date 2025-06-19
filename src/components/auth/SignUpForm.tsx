@@ -242,7 +242,17 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
   const [selectedRole, setSelectedRole] = useState<'pharmacy_admin' | 'pharmacist' | ''>('');
   const [showRoleChangeDialog, setShowRoleChangeDialog] = useState(false);
   const [pendingRole, setPendingRole] = useState<'pharmacy_admin' | 'pharmacist' | ''>('');
-  const { signUp, user, session } = useAuthStore();
+  const { signUp, signOut, user, session } = useAuthStore();
+
+  // セッションが残っている場合はサインアウトしてから登録を開始
+  useEffect(() => {
+    if (session) {
+      signOut().catch((err) => {
+        console.error('Failed to clear session before signup:', err);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 動的スキーマの選択
   const getSchema = () => {
@@ -406,8 +416,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
         }
       }
 
-      // 登録成功 - ダッシュボードに遷移（useAuthStoreが自動的に処理）
-      
     } catch (err: any) {
       console.error('Sign up error:', err);
       
