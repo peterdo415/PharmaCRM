@@ -15,17 +15,15 @@ test('sign up redirects to dashboard', async ({ page }) => {
 
   await page.goto('/');
 
-  // switch to sign up form
+  // switch to sign up form and select role first
   await page.getByRole('button', { name: '新規登録' }).click();
+  await page.getByRole('button', { name: '薬剤師' }).click();
 
   // 基本情報
   const uniqueEmail = `test-${Date.now()}@gmail.com`;
   await page.getByLabel('メールアドレス').fill(uniqueEmail);
   await page.getByLabel('パスワード').fill('password123');
   await page.getByLabel('パスワード確認').fill('password123');
-
-  // 役割選択
-  await page.getByRole('button', { name: '薬剤師' }).click();
 
   // 必須項目の入力
   await page.getByLabel('姓').fill('田中');

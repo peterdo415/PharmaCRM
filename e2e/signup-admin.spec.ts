@@ -14,17 +14,15 @@ test('sign up as pharmacy admin shows dashboard', async ({ page }) => {
 
   await page.goto('/');
 
-  // 新規登録フォームへ
+  // 新規登録フォームへ: 役割を最初に選択
   await page.getByRole('button', { name: '新規登録' }).click();
+  await page.getByRole('button', { name: '薬局管理者' }).click();
 
   // 基本情報
   const uniqueEmail = `admin-${Date.now()}@gmail.com`;
   await page.getByLabel('メールアドレス').fill(uniqueEmail);
   await page.getByLabel('パスワード').fill('password123');
   await page.getByLabel('パスワード確認').fill('password123');
-
-  // 役割選択
-  await page.getByRole('button', { name: '薬局管理者' }).click();
 
   // 薬局情報（必須項目）
   await page.getByLabel('薬局名').fill('テスト薬局');
