@@ -4,10 +4,9 @@
 
 ## 1. 技術基盤
 
-- [ ] Next.js 14 への移行
-  - [ ] `app/` ディレクトリ構成を作成
+- [ ] Vite + React 構成の整備
   - [ ] shadcn/ui を組み込む
-  - [ ] Vite 構成からの置き換え
+  - [ ] ディレクトリ構成の整理
 - [ ] Supabase 連携強化
   - [ ] Edge Functions の利用準備
   - [ ] RLS 設定と型定義の生成
