@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// This test verifies that a new user can sign up and is redirected to the dashboard.
-// It assumes that the application is running locally via `npm run dev`.
+// 新規登録後にダッシュボードへ遷移するかを確認するE2Eテスト。
+// アプリが `npm run dev` で起動していることを前提としています。
 
 test('sign up redirects to dashboard', async ({ page }) => {
   await page.goto('/');
@@ -9,15 +9,38 @@ test('sign up redirects to dashboard', async ({ page }) => {
   // switch to sign up form
   await page.getByRole('button', { name: '新規登録' }).click();
 
-  // fill in minimal fields required for sign up
+  // 基本情報
   await page.getByLabel('メールアドレス').fill('test-user@example.com');
   await page.getByLabel('パスワード').fill('password123');
-  await page.getByLabel('パスワード（確認）').fill('password123');
+  await page.getByLabel('パスワード確認').fill('password123');
 
-  // select role pharmacist for simplicity
+  // 役割選択
   await page.getByRole('button', { name: '薬剤師' }).click();
 
-  // submit the form
+  // 必須項目の入力
+  await page.getByLabel('姓').fill('田中');
+  await page.getByLabel('名').fill('一郎');
+
+  await page.getByLabel('生年月日').locator('select').nth(0).selectOption('1990');
+  await page.getByLabel('生年月日').locator('select').nth(1).selectOption('1');
+  await page.getByLabel('生年月日').locator('select').nth(2).selectOption('1');
+  await page.getByLabel('性別').selectOption('male');
+  await page.getByLabel('携帯電話番号').fill('09012345678');
+
+  // 住所情報
+  await page.getByLabel('郵便番号').fill('1600023');
+  await page.getByLabel('都道府県').selectOption('東京都');
+  await page.getByLabel(/市区町村/).fill('新宿区');
+  await page.getByLabel('住所').fill('西新宿1-1-1');
+
+  // 薬剤師情報
+  await page.getByLabel('薬剤師免許番号').fill('123456');
+  await page.getByLabel('免許取得日').locator('select').nth(0).selectOption('2015');
+  await page.getByLabel('免許取得日').locator('select').nth(1).selectOption('1');
+  await page.getByLabel('免許取得日').locator('select').nth(2).selectOption('1');
+  await page.getByLabel('総経験年数').fill('5');
+
+  // フォーム送信
   await page.getByRole('button', { name: '登録' }).click();
 
   // expect dashboard heading
