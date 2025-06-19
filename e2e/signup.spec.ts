@@ -4,13 +4,23 @@ import { test, expect } from '@playwright/test';
 // アプリが `npm run dev` で起動していることを前提としています。
 
 test('sign up redirects to dashboard', async ({ page }) => {
+  // Ensure no previous session interferes with the signup flow
+  await page.addInitScript(() => {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+  });
+
   await page.goto('/');
 
   // switch to sign up form
   await page.getByRole('button', { name: '新規登録' }).click();
 
   // 基本情報
-  await page.getByLabel('メールアドレス').fill('test-user@example.com');
+  const uniqueEmail = `test-${Date.now()}@example.com`;
+  await page.getByLabel('メールアドレス').fill(uniqueEmail);
   await page.getByLabel('パスワード').fill('password123');
   await page.getByLabel('パスワード確認').fill('password123');
 
@@ -41,7 +51,7 @@ test('sign up redirects to dashboard', async ({ page }) => {
   await page.getByLabel('総経験年数').fill('5');
 
   // フォーム送信
-  await page.getByRole('button', { name: '登録' }).click();
+  await page.getByRole('button', { name: 'アカウント作成' }).click();
 
   // expect dashboard heading
   await expect(page.getByRole('heading', { name: 'ダッシュボード' })).toBeVisible();
