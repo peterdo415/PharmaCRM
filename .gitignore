@@ -24,5 +24,8 @@ dist-ssr
 *.sw?
 .env
 
+# playwright
+test-results/*
+
 .specstory/*
 test-results/*
