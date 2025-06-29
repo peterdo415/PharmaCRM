@@ -58,13 +58,7 @@ export const usePharmacistStore = create<PharmacistStore>((set, get) => ({
       set({ loading: true, error: null });
       const { data, error } = await supabase
         .from('pharmacists')
-        .select(`
-          *,
-          profiles!pharmacists_user_id_fkey (
-            email,
-            role
-          )
-        `)
+.select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -82,12 +76,8 @@ export const usePharmacistStore = create<PharmacistStore>((set, get) => ({
       set({ loading: true, error: null });
       const { data, error } = await supabase
         .from('pharmacists')
-        .select(`
+.select(`
           *,
-          profiles!pharmacists_user_id_fkey (
-            email,
-            role
-          ),
           pharmacist_specialties (
             *,
             specialties (*)
@@ -98,9 +88,10 @@ export const usePharmacistStore = create<PharmacistStore>((set, get) => ({
           )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('薬剤師データが見つかりません');
       set({ currentPharmacist: data });
     } catch (error) {
       set({ error: (error as Error).message });
@@ -116,9 +107,10 @@ export const usePharmacistStore = create<PharmacistStore>((set, get) => ({
         .from('pharmacists')
         .insert([pharmacist])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('薬剤師の作成に失敗しました');
       
       const { pharmacists } = get();
       set({ pharmacists: [data, ...pharmacists] });
@@ -138,9 +130,10 @@ export const usePharmacistStore = create<PharmacistStore>((set, get) => ({
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('更新されたデータが見つかりません');
 
       const { pharmacists, currentPharmacist } = get();
       const updatedPharmacists = pharmacists.map(p => p.id === id ? data : p);
