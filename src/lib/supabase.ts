@@ -13,6 +13,32 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface Database {
   public: {
     Tables: {
+      user_roles: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: 'pharmacy_admin' | 'pharmacist';
+          pharmacy_id?: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role: 'pharmacy_admin' | 'pharmacist';
+          pharmacy_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          role?: 'pharmacy_admin' | 'pharmacist';
+          pharmacy_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       pharmacies: {
         Row: {
           id: string;
@@ -57,37 +83,11 @@ export interface Database {
           updated_at?: string;
         };
       };
-      profiles: {
-        Row: {
-          id: string;
-          email: string;
-          role: 'pharmacy_admin' | 'pharmacist';
-          pharmacy_id?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          email: string;
-          role: 'pharmacy_admin' | 'pharmacist';
-          pharmacy_id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          email?: string;
-          role?: 'pharmacy_admin' | 'pharmacist';
-          pharmacy_id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
       pharmacists: {
         Row: {
           id: string;
           user_id: string;
-          pharmacy_id: string;
+          pharmacy_id?: string;
           first_name: string;
           last_name: string;
           first_name_kana?: string;
@@ -117,7 +117,7 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
-          pharmacy_id: string;
+          pharmacy_id?: string;
           first_name: string;
           last_name: string;
           first_name_kana?: string;

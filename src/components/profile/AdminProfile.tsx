@@ -64,16 +64,23 @@ export const AdminProfile: React.FC = () => {
             role: 'pharmacy_admin',
           });
 
-          // 薬局情報を取得
-          if (profile.pharmacy_id) {
+          // 薬局情報を設定（既に authService.getProfile で取得済み）
+          if (profile.pharmacy) {
+            setPharmacyInfo(profile.pharmacy);
+          } else if (profile.pharmacy_id) {
+            // fallback: 直接薬局データを取得
             const { data: pharmacyData, error: pharmacyError } = await supabase
               .from('pharmacies')
               .select('*')
               .eq('id', profile.pharmacy_id)
-              .single();
+              .maybeSingle();
 
-            if (pharmacyError) throw pharmacyError;
-            setPharmacyInfo(pharmacyData);
+            if (pharmacyError) {
+              console.error('Failed to load pharmacy data:', pharmacyError);
+              setError('薬局情報の取得に失敗しました。');
+            } else if (pharmacyData) {
+              setPharmacyInfo(pharmacyData);
+            }
           }
         } catch (err) {
           console.error('Failed to load profile data:', err);
@@ -93,16 +100,9 @@ export const AdminProfile: React.FC = () => {
       setError(null);
       setSuccess(false);
 
-      // プロフィール情報を更新
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          email: data.email,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      // メールアドレスの更新はauth.usersテーブルで管理されているため
+      // ここでは特別な更新処理は不要
+      // 必要に応じて将来的にauth.updateUserでメール更新可能
 
       setSuccess(true);
       setIsEditing(false);
@@ -112,7 +112,8 @@ export const AdminProfile: React.FC = () => {
       
     } catch (err) {
       console.error('Failed to update profile:', err);
-      setError('プロフィールの更新に失敗しました。');
+      const errorMessage = err instanceof Error ? err.message : 'プロフィールの更新に失敗しました。';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

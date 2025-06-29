@@ -42,7 +42,7 @@ const pharmacistSchema = z.object({
   gender: z.enum(['male', 'female', 'other'], {
     required_error: '性別は必須です',
   }),
-  total_experience_years: z.number().min(0, '経験年数は0以上である必要があります'),
+  experience_years: z.number().min(0, '経験年数は0以上である必要があります'),
   
   // 連絡先（必須）
   phone_mobile: z.string().min(1, '携帯電話番号は必須です'),
@@ -334,7 +334,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
       setLoading(true);
       setError(null);
 
-      // 薬局管理者の場合は薬局情報も一緒に登録
+      // 役割に応じて適切なテーブルに詳細データを登録
       if (data.role === 'pharmacy_admin') {
         const adminData = data as AdminFormData;
         
@@ -353,39 +353,31 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
             license_number: adminData.pharmacy_license_number,
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (pharmacyError) {
           throw new Error('薬局の登録に失敗しました: ' + pharmacyError.message);
         }
 
-        // ユーザー登録（薬局IDを含む）
-        await signUp(data.email, data.password, data.role, pharmacyData.id);
-      } else {
-        // 薬剤師の場合は薬剤師情報も一緒に登録
-        const pharmacistData = data as PharmacistFormData;
-        
-        // サンプル薬局のIDを取得
-        const { data: samplePharmacy, error: pharmacyError } = await supabase
-          .from('pharmacies')
-          .select('id')
-          .eq('name', 'サンプル薬局')
-          .single();
-
-        if (pharmacyError || !samplePharmacy) {
-          throw new Error('薬局情報の取得に失敗しました');
+        if (!pharmacyData) {
+          throw new Error('薬局データの作成に失敗しました');
         }
 
-        // ユーザー登録
-        const { user: newUser } = await signUp(data.email, data.password, data.role, samplePharmacy.id);
+        // ユーザー登録（薬局IDを含む）
+        await signUp(data.email, data.password, data.role, pharmacyData.id);
+      } else if (data.role === 'pharmacist') {
+        const pharmacistData = data as PharmacistFormData;
+        
+        // ユーザー登録（薬局IDなし）
+        const { user: newUser } = await signUp(data.email, data.password, data.role);
 
         if (newUser) {
-          // 薬剤師詳細情報を登録
+          // 薬剤師詳細情報を pharmacists テーブルに登録
           const { error: pharmacistError } = await supabase
             .from('pharmacists')
             .insert({
               user_id: newUser.id,
-              pharmacy_id: samplePharmacy.id,
+              pharmacy_id: null, // 薬局の紐付けは後でプロフィール機能で設定
               first_name: pharmacistData.first_name,
               last_name: pharmacistData.last_name,
               first_name_kana: pharmacistData.first_name_kana,
@@ -406,11 +398,18 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
               emergency_contact_relation: pharmacistData.emergency_contact_relation,
               license_number: pharmacistData.license_number,
               license_date: pharmacistData.license_date,
-              total_experience_years: pharmacistData.total_experience_years,
-              is_active: true,
+              experience_years: pharmacistData.experience_years,
+              // is_active: true,
             });
 
           if (pharmacistError) {
+            // 薬剤師情報の登録に失敗した場合、作成されたユーザーを削除してエラーを投げる
+            console.error('薬剤師情報登録エラー、ユーザーを削除します:', pharmacistError);
+            try {
+              await signOut(); // セッションをクリア
+            } catch (signOutError) {
+              console.error('サインアウトエラー:', signOutError);
+            }
             throw new Error('薬剤師情報の登録に失敗しました: ' + pharmacistError.message);
           }
         }
@@ -418,6 +417,13 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
 
     } catch (err: any) {
       console.error('Sign up error:', err);
+      
+      // エラー時にセッションをクリアして、フォーム状態を維持
+      try {
+        await signOut();
+      } catch (signOutError) {
+        console.error('Error clearing session after signup failure:', signOutError);
+      }
       
       if (err.message?.includes('User already registered')) {
         setError('このメールアドレスは既に登録されています。');
@@ -770,7 +776,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
                           min="0"
                           max="50"
                           placeholder="5"
-                          error={errors.total_experience_years?.message}
+                          error={errors.experience_years?.message}
                           validationRules={{
                             required: true,
                             number: true,
@@ -783,7 +789,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
                               return null;
                             },
                           }}
-                          {...register('total_experience_years', { valueAsNumber: true })}
+                          {...register('experience_years', { valueAsNumber: true })}
                         />
                       </div>
                     </div>
@@ -819,15 +825,39 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
                           />
                           <p className="mt-1 text-xs text-gray-500">※ ハイフン（-）なしで入力してください</p>
                         </div>
-                        <Input
-                          label="続柄"
-                          placeholder="配偶者、親、兄弟など"
-                          error={errors.emergency_contact_relation?.message}
-                          validationRules={{
-                            maxLength: 50,
-                          }}
-                          {...register('emergency_contact_relation')}
-                        />
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            続柄
+                          </label>
+                          <select
+                            className="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                            {...register('emergency_contact_relation')}
+                          >
+                            <option value="">選択してください</option>
+                            <option value="父">父</option>
+                            <option value="母">母</option>
+                            <option value="夫">夫</option>
+                            <option value="妻">妻</option>
+                            <option value="息子">息子</option>
+                            <option value="娘">娘</option>
+                            <option value="兄">兄</option>
+                            <option value="弟">弟</option>
+                            <option value="姉">姉</option>
+                            <option value="妹">妹</option>
+                            <option value="祖父">祖父</option>
+                            <option value="祖母">祖母</option>
+                            <option value="叔父">叔父</option>
+                            <option value="伯父">伯父</option>
+                            <option value="叔母">叔母</option>
+                            <option value="伯母">伯母</option>
+                            <option value="いとこ">いとこ</option>
+                            <option value="友人">友人</option>
+                            <option value="その他">その他</option>
+                          </select>
+                          {errors.emergency_contact_relation && (
+                            <p className="mt-1 text-sm text-red-600">{errors.emergency_contact_relation.message}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </>
@@ -921,7 +951,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
                         
                         <Input
                           label="薬局免許番号"
-                          placeholder="薬局-123456"
+                          placeholder="千保第〇〇〇〇号"
                           error={errors.pharmacy_license_number?.message}
                           validationRules={{
                             maxLength: 50,

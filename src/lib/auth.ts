@@ -25,31 +25,18 @@ export const authService = {
 
     if (error) throw error;
 
-    // Create profile record
+    // Create user role record
     if (data.user) {
-      let targetPharmacyId = pharmacyId;
-      
-      // 薬剤師の場合でpharmacyIdが指定されていない場合はサンプル薬局を使用
-      if (role === 'pharmacist' && !pharmacyId) {
-        const { data: pharmacy } = await supabase
-          .from('pharmacies')
-          .select('id')
-          .eq('name', 'サンプル薬局')
-          .single();
-        
-        targetPharmacyId = pharmacy?.id;
-      }
-
-      const { error: profileError } = await supabase
-        .from('profiles')
+      const { error: roleError } = await supabase
+        .from('user_roles')
         .insert({
-          id: data.user.id,
-          email: cleanedEmail, // クリーニング済みメールアドレスを使用
+          user_id: data.user.id,
           role,
-          pharmacy_id: targetPharmacyId,
+          pharmacy_id: pharmacyId || null,
         });
 
-      if (profileError) throw profileError;
+      if (roleError) throw roleError;
+
     }
 
     return {
@@ -102,36 +89,115 @@ export const authService = {
   },
 
   async getProfile(userId: string) {
-    // SECURITY DEFINER関数を使用してプロフィールを取得
-    const { data, error } = await supabase
-      .rpc('get_user_profile', { user_id: userId });
+    try {
+      // まずuser_rolesテーブルから役割を取得を試み、失敗した場合はprofilesテーブルから取得
+      let role: string | null = null;
+      
+      try {
+        const { data: userRole, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    if (error) throw error;
-    
-    if (!data || data.length === 0) {
-      throw new Error('プロフィールが見つかりません');
-    }
-
-    const profile = data[0];
-
-    // 薬局情報も取得
-    let pharmacyData = null;
-    if (profile.pharmacy_id) {
-      const { data: pharmacy, error: pharmacyError } = await supabase
-        .from('pharmacies')
-        .select('id, name, prefecture, city')
-        .eq('id', profile.pharmacy_id)
-        .single();
-
-      if (!pharmacyError) {
-        pharmacyData = pharmacy;
+        if (!roleError && userRole) {
+          role = userRole.role;
+        }
+      } catch (roleError) {
+        console.warn('Failed to get role from user_roles table:', roleError);
       }
-    }
 
-    return {
-      ...profile,
-      pharmacies: pharmacyData,
-    };
+      // user_rolesテーブルから取得できない場合はエラー
+      if (!role) {
+        throw new Error('ユーザーの役割が見つかりません');
+      }
+
+      // 基本プロフィール情報を作成
+      const profile = {
+        id: userId,
+        email: null, // 必要に応じてauth.usersから取得可能
+        pharmacy_id: null // 役割に応じて後で設定
+      };
+
+      // 役割に応じて適切なテーブルからデータを取得
+      if (role === 'pharmacist') {
+        // 薬剤師の場合は pharmacists テーブルから詳細情報を取得
+        const { data: pharmacistData, error: pharmacistError } = await supabase
+          .from('pharmacists')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (pharmacistError) {
+          console.error('薬剤師データ取得エラー:', pharmacistError);
+        }
+
+        // 薬局情報を取得（薬剤師が薬局に所属している場合）
+        let pharmacyData = null;
+        if (pharmacistData?.pharmacy_id) {
+          const { data: pharmacy, error: pharmacyError } = await supabase
+            .from('pharmacies')
+            .select('*')
+            .eq('id', pharmacistData.pharmacy_id)
+            .maybeSingle();
+
+          if (!pharmacyError && pharmacy) {
+            pharmacyData = pharmacy;
+          }
+        }
+
+        return {
+          id: userId,
+          email: profile.email,
+          pharmacy_id: pharmacistData?.pharmacy_id || null,
+          role: role, // user_roles テーブルから取得した役割を使用
+          pharmacist: pharmacistData,
+          pharmacy: pharmacyData,
+        };
+      } else if (role === 'pharmacy_admin') {
+        // 薬局管理者の場合は user_roles テーブルから pharmacy_id を取得
+        const { data: userRoleData, error: userRoleError } = await supabase
+          .from('user_roles')
+          .select('pharmacy_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        let pharmacyData = null;
+        if (!userRoleError && userRoleData?.pharmacy_id) {
+          const { data: pharmacy, error: pharmacyError } = await supabase
+            .from('pharmacies')
+            .select('*')
+            .eq('id', userRoleData.pharmacy_id)
+            .maybeSingle();
+
+          if (!pharmacyError && pharmacy) {
+            pharmacyData = pharmacy;
+          }
+        }
+
+        return {
+          id: userId,
+          email: profile.email,
+          pharmacy_id: userRoleData?.pharmacy_id || null,
+          role: role, // user_roles テーブルから取得した役割を使用
+          pharmacy: pharmacyData,
+          pharmacist: null, // 管理者は薬剤師データなし
+        };
+      }
+
+      // 未知の役割の場合（フォールバック）
+      return {
+        id: userId,
+        email: profile.email,
+        pharmacy_id: null,
+        role: role,
+        pharmacy: null,
+        pharmacist: null,
+      };
+    } catch (error) {
+      console.error('プロフィール取得エラー:', error);
+      throw error;
+    }
   },
 
   // メール確認を手動で行う関数（管理者用）
