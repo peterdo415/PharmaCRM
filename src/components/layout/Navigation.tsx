@@ -30,7 +30,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChang
   const pharmacistNavItems = [
     { id: 'dashboard', label: 'ダッシュボード', icon: Home },
     { id: 'profile', label: 'プロフィール', icon: User },
-    { id: 'schedule', label: 'スケジュール', icon: Calendar },
+    { id: 'schedules', label: 'シフト管理', icon: Calendar },
     { id: 'timesheet', label: '勤務実績', icon: Clock },
   ];
 

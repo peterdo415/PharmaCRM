@@ -8,6 +8,7 @@ import { SignUpForm } from './components/auth/SignUpForm';
 import { PharmacistList } from './components/pharmacist/PharmacistList';
 import { PharmacistForm } from './components/pharmacist/PharmacistForm';
 import { ProfileContainer } from './components/profile/ProfileContainer';
+import { Shifts } from './pages/Shifts';
 
 function App() {
   const { user, session, loading, initialized, initialize, profile } = useAuthStore();
@@ -280,17 +281,7 @@ function App() {
           </div>
         );
       case 'schedules':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">シフト管理</h2>
-              <p className="text-gray-600">薬剤師のシフト管理機能（開発予定）</p>
-            </div>
-            <div className="bg-white rounded-xl p-8 shadow-md border border-gray-200 text-center">
-              <p className="text-gray-500">この機能は開発中です</p>
-            </div>
-          </div>
-        );
+        return <Shifts />;
       case 'schedule':
         return (
           <div className="space-y-6">
