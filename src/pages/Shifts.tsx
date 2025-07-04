@@ -16,6 +16,14 @@ import {
 
 type ViewMode = 'month' | 'week' | 'day';
 
+// 日付をYYYY-MM-DD形式でローカルタイムゾーンで取得する関数
+const formatDateToLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Shifts: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -105,7 +113,7 @@ export const Shifts: React.FC = () => {
           
           {/* 新規作成ボタン */}
           <Button
-            onClick={() => handleCreateSchedule(new Date().toISOString().split('T')[0])}
+            onClick={() => handleCreateSchedule(formatDateToLocal(new Date()))}
             icon={Plus}
           >
             新規作成

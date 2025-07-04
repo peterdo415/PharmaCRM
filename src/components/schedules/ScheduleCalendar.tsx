@@ -22,6 +22,14 @@ interface ScheduleCalendarProps {
   onCreateSchedule?: (date: string) => void;
 }
 
+// 日付をYYYY-MM-DD形式でローカルタイムゾーンで取得する関数
+const formatDateToLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   view = 'month',
   onScheduleClick,
@@ -100,7 +108,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         );
       } else if (view === 'day') {
         schedulesData = await scheduleService.getDailySchedules(
-          currentDate.toISOString().split('T')[0],
+          formatDateToLocal(currentDate),
           pharmacistId
         );
       }
@@ -120,7 +128,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   // 特定の日付のスケジュールを取得
   const getSchedulesForDate = (date: Date): Schedule[] => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateToLocal(date);
     return schedules.filter(schedule => schedule.schedule_date === dateStr);
   };
 
@@ -214,7 +222,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
               } ${isToday ? 'bg-blue-50 border-blue-300' : ''} 
               hover:bg-gray-50 cursor-pointer relative`}
-              onClick={() => onCreateSchedule?.(date.toISOString().split('T')[0])}
+              onClick={() => onCreateSchedule?.(formatDateToLocal(date))}
             >
               <div className={`text-sm ${
                 !isCurrentMonth ? 'text-gray-400' : isWeekend ? 'text-red-600' : 'text-gray-900'
@@ -299,7 +307,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 
                 <button
                   className="w-full text-xs p-1 border border-dashed border-gray-300 rounded text-gray-500 hover:bg-gray-50"
-                  onClick={() => onCreateSchedule?.(date.toISOString().split('T')[0])}
+                  onClick={() => onCreateSchedule?.(formatDateToLocal(date))}
                 >
                   + スケジュール追加
                 </button>
@@ -323,7 +331,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           </h3>
           <Button
             size="sm"
-            onClick={() => onCreateSchedule?.(currentDate.toISOString().split('T')[0])}
+            onClick={() => onCreateSchedule?.(formatDateToLocal(currentDate))}
             icon={Plus}
           >
             スケジュール追加

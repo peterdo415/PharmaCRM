@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, Session } from '@supabase/supabase-js';
 import { authService } from '../lib/auth';
+import { injectDevAuth } from '../lib/dev-auth';
 
 interface AuthStore {
   user: User | null;
@@ -40,6 +41,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   initialize: async () => {
     try {
       set({ loading: true });
+      
+      // Development mode: Use test authentication data
+      const devAuth = injectDevAuth();
+      if (devAuth) {
+        set({
+          user: devAuth.user as User,
+          session: devAuth.session as Session,
+          profile: devAuth.profile,
+          initialized: true,
+          loading: false
+        });
+        return;
+      }
       
       // 現在のセッションを取得
       const session = await authService.getCurrentSession();

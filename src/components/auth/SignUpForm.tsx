@@ -399,17 +399,10 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
               license_number: pharmacistData.license_number,
               license_date: pharmacistData.license_date,
               experience_years: pharmacistData.experience_years,
-              // is_active: true,
+              is_active: true,
             });
 
           if (pharmacistError) {
-            // 薬剤師情報の登録に失敗した場合、作成されたユーザーを削除してエラーを投げる
-            console.error('薬剤師情報登録エラー、ユーザーを削除します:', pharmacistError);
-            try {
-              await signOut(); // セッションをクリア
-            } catch (signOutError) {
-              console.error('サインアウトエラー:', signOutError);
-            }
             throw new Error('薬剤師情報の登録に失敗しました: ' + pharmacistError.message);
           }
         }
@@ -417,13 +410,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
 
     } catch (err: any) {
       console.error('Sign up error:', err);
-      
-      // エラー時にセッションをクリアして、フォーム状態を維持
-      try {
-        await signOut();
-      } catch (signOutError) {
-        console.error('Error clearing session after signup failure:', signOutError);
-      }
       
       if (err.message?.includes('User already registered')) {
         setError('このメールアドレスは既に登録されています。');

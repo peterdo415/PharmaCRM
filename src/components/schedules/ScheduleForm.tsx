@@ -13,12 +13,13 @@ import {
   X, 
   Clock, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  History
 } from 'lucide-react';
 
 const scheduleFormSchema = z.object({
   pharmacist_id: z.string().min(1, '薬剤師を選択してください'),
-  pharmacy_id: z.string().min(1, '薬局を選択してください'),
   schedule_date: z.string().min(1, '勤務日を入力してください'),
   start_time: z.string().min(1, '開始時間を入力してください'),
   end_time: z.string().min(1, '終了時間を入力してください'),
@@ -44,6 +45,8 @@ interface ScheduleFormProps {
   defaultPharmacistId?: string;
   onSubmit: (schedule: Schedule) => void;
   onCancel: () => void;
+  onShowChangeDialog?: () => void;
+  onShowHistory?: () => void;
 }
 
 interface Pharmacist {
@@ -59,8 +62,11 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
   defaultDate,
   defaultPharmacistId,
   onSubmit,
-  onCancel
+  onCancel,
+  onShowChangeDialog,
+  onShowHistory
 }) => {
+  console.log('ScheduleForm props:', { schedule: !!schedule, defaultDate, defaultPharmacistId });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pharmacists, setPharmacists] = useState<Pharmacist[]>([]);
@@ -71,16 +77,16 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<ScheduleFormData>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues: {
       pharmacist_id: schedule?.pharmacist_id || defaultPharmacistId || '',
-      pharmacy_id: schedule?.pharmacy_id || '',
       schedule_date: schedule?.schedule_date || defaultDate || '',
       start_time: schedule?.start_time || '09:00',
       end_time: schedule?.end_time || '18:00',
-      break_duration: schedule?.break_duration || 60,
+      break_duration: schedule?.break_duration || 0,
       work_type: schedule?.work_type || 'regular',
       work_location: schedule?.work_location || '',
       work_description: schedule?.work_description || '',
@@ -125,16 +131,51 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
     loadPharmacists();
   }, [profile]);
 
-  // 薬剤師選択時にpharmacy_idを自動設定
-  const selectedPharmacist = watch('pharmacist_id');
+  // スケジュールが変更されたときにフォーム全体を再初期化
   useEffect(() => {
-    if (selectedPharmacist) {
-      const pharmacist = pharmacists.find(p => p.id === selectedPharmacist);
-      if (pharmacist) {
-        setValue('pharmacy_id', pharmacist.pharmacy_id);
-      }
+    if (schedule) {
+      // 編集モード：スケジュールのデータでフォームを初期化
+      reset({
+        pharmacist_id: schedule.pharmacist_id,
+        schedule_date: schedule.schedule_date,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        break_duration: schedule.break_duration,
+        work_type: schedule.work_type,
+        work_location: schedule.work_location || '',
+        work_description: schedule.work_description || '',
+        status: schedule.status,
+      });
+    } else {
+      // 新規作成モード：デフォルト値でフォームを初期化
+      reset({
+        pharmacist_id: defaultPharmacistId || '',
+        schedule_date: defaultDate || '',
+        start_time: '09:00',
+        end_time: '18:00',
+        break_duration: 0,
+        work_type: 'regular',
+        work_location: '',
+        work_description: '',
+        status: 'scheduled',
+      });
     }
-  }, [selectedPharmacist, pharmacists, setValue]);
+  }, [schedule, defaultDate, defaultPharmacistId, reset]);
+
+  // 新規作成時のdefaultDateが変更されたときに日付フィールドのみ更新
+  useEffect(() => {
+    if (!schedule && defaultDate) {
+      console.log('Setting schedule_date to:', defaultDate);
+      setValue('schedule_date', defaultDate, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [defaultDate, schedule, setValue]);
+
+  // 新規作成時のdefaultPharmacistIdが変更されたときに薬剤師フィールドのみ更新
+  useEffect(() => {
+    if (!schedule && defaultPharmacistId) {
+      setValue('pharmacist_id', defaultPharmacistId);
+    }
+  }, [defaultPharmacistId, schedule, setValue]);
 
   const onFormSubmit = async (data: ScheduleFormData) => {
     try {
@@ -158,10 +199,22 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
 
         result = await scheduleService.updateSchedule(schedule.id, updateData);
       } else {
-        // 新規作成
+        // 新規作成 - pharmacy_idを薬剤師情報から取得
+        const selectedPharmacist = pharmacists.find(p => p.id === data.pharmacist_id);
+        if (!selectedPharmacist) {
+          throw new Error('選択された薬剤師が見つかりません');
+        }
+
+        console.log('🔍 Debug Info:');
+        console.log('Selected pharmacist:', selectedPharmacist);
+        console.log('All pharmacists:', pharmacists);
+        console.log('Current user:', user);
+        console.log('Current profile:', profile);
+
         const createData: CreateScheduleData = {
           pharmacist_id: data.pharmacist_id,
-          pharmacy_id: data.pharmacy_id,
+          pharmacy_id: selectedPharmacist.pharmacy_id,
+          user_id: selectedPharmacist.user_id, // RLSポリシー用にuser_idを追加
           schedule_date: data.schedule_date,
           start_time: data.start_time,
           end_time: data.end_time,
@@ -171,6 +224,8 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           work_description: data.work_description || undefined,
           status: data.status || 'scheduled',
         };
+
+        console.log('🚀 Create data payload:', createData);
 
         result = await scheduleService.createSchedule(createData);
       }
@@ -211,9 +266,23 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
             <Clock className="w-5 h-5 mr-2" />
             {schedule ? 'スケジュール編集' : 'スケジュール作成'}
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={onCancel}>
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {schedule && onShowChangeDialog && (
+              <Button variant="outline" size="sm" onClick={onShowChangeDialog}>
+                <Edit className="w-4 h-4 mr-1" />
+                変更
+              </Button>
+            )}
+            {schedule && onShowHistory && (
+              <Button variant="outline" size="sm" onClick={onShowHistory}>
+                <History className="w-4 h-4 mr-1" />
+                履歴
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onCancel}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -256,10 +325,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
             <Input
               label="勤務日"
               type="date"
+              readOnly={true}
               error={errors.schedule_date?.message}
               validationRules={{
-                required: '勤務日を入力してください',
+                required: true,
               }}
+              value={watch('schedule_date')}
               {...register('schedule_date')}
             />
           </div>
@@ -274,7 +345,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
                 type="time"
                 error={errors.start_time?.message}
                 validationRules={{
-                  required: '開始時間を入力してください',
+                  required: true,
                 }}
                 {...register('start_time')}
               />
@@ -284,7 +355,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
                 type="time"
                 error={errors.end_time?.message}
                 validationRules={{
-                  required: '終了時間を入力してください',
+                  required: true,
                 }}
                 {...register('end_time')}
               />
