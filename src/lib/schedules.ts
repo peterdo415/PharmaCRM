@@ -148,6 +148,28 @@ export const scheduleService = {
     return this.getSchedules(date, date, pharmacistId);
   },
 
+  // Get a specific schedule by ID
+  async getScheduleById(scheduleId: string): Promise<Schedule> {
+    const { data, error } = await supabase
+      .from('schedules')
+      .select(`
+        *,
+        pharmacist:pharmacists(
+          first_name,
+          last_name,
+          user_id
+        )
+      `)
+      .eq('id', scheduleId)
+      .single();
+
+    if (error) {
+      throw new Error(`スケジュール情報の取得に失敗しました: ${error.message}`);
+    }
+
+    return data as Schedule;
+  },
+
   // Create a new schedule
   async createSchedule(scheduleData: CreateScheduleData) {
     // Get current user

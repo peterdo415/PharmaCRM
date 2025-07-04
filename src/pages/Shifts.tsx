@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Schedule } from '../lib/schedules';
+import React, { useState, useRef } from 'react';
+import { Schedule, scheduleService } from '../lib/schedules';
 import { useAuthStore } from '../stores/auth';
-import { ScheduleCalendar } from '../components/schedules/ScheduleCalendar';
+import { ScheduleCalendar, ScheduleCalendarRef } from '../components/schedules/ScheduleCalendar';
 import { ScheduleForm } from '../components/schedules/ScheduleForm';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -31,12 +31,26 @@ export const Shifts: React.FC = () => {
   const [defaultDate, setDefaultDate] = useState<string>('');
   const [defaultPharmacistId, setDefaultPharmacistId] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const calendarRef = useRef<ScheduleCalendarRef>(null);
 
   const { user, profile } = useAuthStore();
 
-  const handleScheduleClick = (schedule: Schedule) => {
-    setSelectedSchedule(schedule);
-    setShowForm(true);
+  const handleScheduleClick = async (schedule: Schedule) => {
+    try {
+      setLoading(true);
+      // スケジュールIDから最新の詳細情報を取得
+      const detailedSchedule = await scheduleService.getScheduleById(schedule.id);
+      setSelectedSchedule(detailedSchedule);
+      setShowForm(true);
+    } catch (error) {
+      console.error('Failed to fetch schedule details:', error);
+      // エラーの場合は、カレンダーから渡されたデータを使用
+      setSelectedSchedule(schedule);
+      setShowForm(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateSchedule = (date: string) => {
@@ -47,12 +61,26 @@ export const Shifts: React.FC = () => {
   };
 
   const handleFormSubmit = (schedule: Schedule) => {
+    // 即座にUIに反映（楽観的更新）
+    if (calendarRef.current) {
+      if (selectedSchedule) {
+        // 更新の場合
+        calendarRef.current.updateSchedule(schedule);
+      } else {
+        // 新規作成の場合
+        calendarRef.current.addSchedule(schedule);
+      }
+    }
+    
     setShowForm(false);
     setSelectedSchedule(null);
     setDefaultDate('');
     setDefaultPharmacistId('');
-    // Refresh the calendar by updating the key
-    setRefreshKey(prev => prev + 1);
+    
+    // バックアップとして、少し遅れてカレンダーをリフレッシュ
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 100);
   };
 
   const handleFormCancel = () => {
@@ -60,6 +88,23 @@ export const Shifts: React.FC = () => {
     setSelectedSchedule(null);
     setDefaultDate('');
     setDefaultPharmacistId('');
+  };
+
+  const handleScheduleDelete = (scheduleId: string) => {
+    // 即座にUIから削除（楽観的更新）
+    if (calendarRef.current) {
+      calendarRef.current.removeSchedule(scheduleId);
+    }
+    
+    setShowForm(false);
+    setSelectedSchedule(null);
+    setDefaultDate('');
+    setDefaultPharmacistId('');
+    
+    // バックアップとして、少し遅れてカレンダーをリフレッシュ
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 100);
   };
 
   if (!user || !profile) {
@@ -125,11 +170,21 @@ export const Shifts: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* カレンダー表示 */}
         <div className={showForm ? 'lg:col-span-2' : 'lg:col-span-3'}>
+          {loading && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                <p className="text-sm text-blue-600">スケジュール詳細を読み込み中...</p>
+              </div>
+            </div>
+          )}
           <ScheduleCalendar
+            ref={calendarRef}
             key={refreshKey}
             view={viewMode}
             onScheduleClick={handleScheduleClick}
             onCreateSchedule={handleCreateSchedule}
+            refreshTrigger={refreshKey}
           />
         </div>
 
@@ -143,6 +198,7 @@ export const Shifts: React.FC = () => {
                 defaultPharmacistId={defaultPharmacistId}
                 onSubmit={handleFormSubmit}
                 onCancel={handleFormCancel}
+                onDelete={handleScheduleDelete}
               />
             </div>
           </div>

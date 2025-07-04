@@ -45,6 +45,7 @@ interface ScheduleFormProps {
   defaultPharmacistId?: string;
   onSubmit: (schedule: Schedule) => void;
   onCancel: () => void;
+  onDelete?: (scheduleId: string) => void;
   onShowChangeDialog?: () => void;
   onShowHistory?: () => void;
 }
@@ -63,6 +64,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
   defaultPharmacistId,
   onSubmit,
   onCancel,
+  onDelete,
   onShowChangeDialog,
   onShowHistory
 }) => {
@@ -133,6 +135,9 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
 
   // スケジュールが変更されたときにフォーム全体を再初期化
   useEffect(() => {
+    // 薬剤師リストがロードされてから初期化を行う
+    if (pharmacists.length === 0) return;
+    
     if (schedule) {
       // 編集モード：スケジュールのデータでフォームを初期化
       reset({
@@ -160,7 +165,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
         status: 'scheduled',
       });
     }
-  }, [schedule, defaultDate, defaultPharmacistId, reset]);
+  }, [schedule, defaultDate, defaultPharmacistId, pharmacists, reset]);
 
   // 新規作成時のdefaultDateが変更されたときに日付フィールドのみ更新
   useEffect(() => {
@@ -172,10 +177,10 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
 
   // 新規作成時のdefaultPharmacistIdが変更されたときに薬剤師フィールドのみ更新
   useEffect(() => {
-    if (!schedule && defaultPharmacistId) {
+    if (!schedule && defaultPharmacistId && pharmacists.length > 0) {
       setValue('pharmacist_id', defaultPharmacistId);
     }
-  }, [defaultPharmacistId, schedule, setValue]);
+  }, [defaultPharmacistId, schedule, pharmacists, setValue]);
 
   const onFormSubmit = async (data: ScheduleFormData) => {
     try {
@@ -249,6 +254,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
       setError(null);
 
       await scheduleService.deleteSchedule(schedule.id);
+      
+      // 削除が成功したら親コンポーネントに通知
+      if (onDelete) {
+        onDelete(schedule.id);
+      }
+      
       onCancel(); // フォームを閉じる
     } catch (err) {
       console.error('Failed to delete schedule:', err);
@@ -308,6 +319,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
               <select
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 disabled={profile?.role === 'pharmacist'}
+                value={watch('pharmacist_id')}
                 {...register('pharmacist_id')}
               >
                 <option value="">選択してください</option>
@@ -347,6 +359,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
                 validationRules={{
                   required: true,
                 }}
+                value={watch('start_time')}
                 {...register('start_time')}
               />
 
@@ -357,6 +370,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
                 validationRules={{
                   required: true,
                 }}
+                value={watch('end_time')}
                 {...register('end_time')}
               />
             </div>
@@ -366,6 +380,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
               type="number"
               min="0"
               error={errors.break_duration?.message}
+              value={watch('break_duration') || 0}
               {...register('break_duration', { valueAsNumber: true })}
             />
           </div>

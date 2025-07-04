@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Schedule, scheduleService } from '../../lib/schedules';
 import { useAuthStore } from '../../stores/auth';
 import { Button } from '../ui/Button';
@@ -20,6 +20,15 @@ interface ScheduleCalendarProps {
   view?: 'month' | 'week' | 'day';
   onScheduleClick?: (schedule: Schedule) => void;
   onCreateSchedule?: (date: string) => void;
+  refreshTrigger?: number;
+  onScheduleUpdate?: (schedule: Schedule) => void;
+}
+
+export interface ScheduleCalendarRef {
+  addSchedule: (schedule: Schedule) => void;
+  updateSchedule: (schedule: Schedule) => void;
+  removeSchedule: (scheduleId: string) => void;
+  refreshSchedules: () => void;
 }
 
 // 日付をYYYY-MM-DD形式でローカルタイムゾーンで取得する関数
@@ -30,11 +39,13 @@ const formatDateToLocal = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
+export const ScheduleCalendar = forwardRef<ScheduleCalendarRef, ScheduleCalendarProps>(({
   view = 'month',
   onScheduleClick,
-  onCreateSchedule
-}) => {
+  onCreateSchedule,
+  refreshTrigger,
+  onScheduleUpdate
+}, ref) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -124,7 +135,46 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   useEffect(() => {
     loadSchedules();
-  }, [currentDate, view, user, profile]);
+  }, [currentDate, view, user, profile, refreshTrigger]);
+
+  // 楽観的更新：新しいスケジュールを即座にUIに追加
+  const addScheduleOptimistically = (newSchedule: Schedule) => {
+    setSchedules(prevSchedules => {
+      // 既存のスケジュールと重複しないかチェック
+      const exists = prevSchedules.some(schedule => schedule.id === newSchedule.id);
+      if (exists) {
+        // 更新の場合
+        return prevSchedules.map(schedule => 
+          schedule.id === newSchedule.id ? newSchedule : schedule
+        );
+      } else {
+        // 新規追加の場合
+        return [...prevSchedules, newSchedule];
+      }
+    });
+  };
+
+  // 楽観的更新：スケジュールを削除
+  const removeScheduleOptimistically = (scheduleId: string) => {
+    setSchedules(prevSchedules => 
+      prevSchedules.filter(schedule => schedule.id !== scheduleId)
+    );
+  };
+
+  // スケジュール更新時のコールバック
+  useEffect(() => {
+    if (onScheduleUpdate) {
+      // 外部からスケジュール更新を受け取る仕組み（今回は使用しないが将来の拡張用）
+    }
+  }, [onScheduleUpdate]);
+
+  // 外部から呼び出し可能な関数を公開
+  useImperativeHandle(ref, () => ({
+    addSchedule: addScheduleOptimistically,
+    updateSchedule: addScheduleOptimistically,
+    removeSchedule: removeScheduleOptimistically,
+    refreshSchedules: loadSchedules
+  }));
 
   // 特定の日付のスケジュールを取得
   const getSchedulesForDate = (date: Date): Schedule[] => {
@@ -465,4 +515,4 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       </CardContent>
     </Card>
   );
-};
+});
