@@ -68,4 +68,5 @@ jobs:
 
       # 7. デプロイ URL 表示
       - name: Post deployment info
-        run: echo "🚀 Frontend is live at: ${{ steps.vercel_deploy.outputs.url }}"
+        run: |
+          echo "🚀 Frontend is live at: ${{ steps.vercel_deploy.outputs.url }}"
