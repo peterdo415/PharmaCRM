@@ -29,3 +29,4 @@ test-results/*
 
 .specstory/
 test-results/*
+.vercel

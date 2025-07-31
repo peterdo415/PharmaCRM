@@ -2,47 +2,51 @@ name: Deploy to Production
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # ────────────────────────────────────────────────
+    # 共有環境変数（Secrets は Settings ▸ Actions ▸ Secrets に登録）
+    # ────────────────────────────────────────────────
     env:
       # Supabase
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF:  ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
+
       # Vercel
-      VERCEL_TOKEN:          ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID:         ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID:     ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}      # Personal Access Token
+      VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}     # チーム / 組織 ID (UUID)
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }} # プロジェクト ID (UUID)
 
     steps:
-      # 1. コード取得
+      # 1. リポジトリをチェックアウト
       - uses: actions/checkout@v3
 
-      # 2. Supabase CLI インストール（最新版）
+      # 2. Supabase CLI をインストール（常に最新）
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      # 3. Supabase プロジェクトに非対話リンク
-      - name: Link to Supabase Project
+      # 3. Supabase プロジェクトへ非対話リンク
+      - name: Link to Supabase
         run: |
           supabase link \
             --project-ref "$SUPABASE_PROJECT_REF" \
             --password    "$SUPABASE_DB_PASSWORD"
 
-      # 4. Supabase マイグレーション適用
-      - name: Apply Supabase Migrations
+      # 4. マイグレーションを適用
+      - name: Apply Supabase migrations
         run: supabase db push
 
-      # 5. Supabase Edge Functions デプロイ
+      # 5. （任意）Edge Functions デプロイ
       # - name: Deploy Supabase Edge Functions
       #   run: supabase functions deploy
 
-      # 6. フロントエンドを Vercel にデプロイ
+      # 6. フロントエンドを Vercel へデプロイ
       - name: Deploy Frontend to Vercel
         uses: amondnet/vercel-action@v20
         with:
