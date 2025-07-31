@@ -35,5 +35,5 @@ jobs:
         run: supabase db push
 
       # 5. Edge Functions デプロイ
-      - name: Deploy Edge Functions
-        run: supabase functions deploy
+      # - name: Deploy Edge Functions
+      #   run: supabase functions deploy
