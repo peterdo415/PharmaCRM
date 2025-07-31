@@ -8,50 +8,59 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # ────────────────────────────────────────────────
-    # 共有環境変数（Secrets は Settings ▸ Actions ▸ Secrets に登録）
-    # ────────────────────────────────────────────────
     env:
       # Supabase
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF:  ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
-
       # Vercel
-      VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}      # Personal Access Token
-      VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}     # チーム / 組織 ID (UUID)
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }} # プロジェクト ID (UUID)
+      VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
     steps:
-      # 1. リポジトリをチェックアウト
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # 2. Supabase CLI をインストール（常に最新）
-      - uses: supabase/setup-cli@v1
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      # 3. Supabase プロジェクトへ非対話リンク
-      - name: Link to Supabase
+      - name: Link to Supabase Project
         run: |
           supabase link \
             --project-ref "$SUPABASE_PROJECT_REF" \
             --password    "$SUPABASE_DB_PASSWORD"
 
-      # 4. マイグレーションを適用
-      - name: Apply Supabase migrations
+      - name: Apply Supabase Migrations
         run: supabase db push
 
-      # 5. （任意）Edge Functions デプロイ
+      # Edge Functions は未作成なのでコメントアウト
       # - name: Deploy Supabase Edge Functions
       #   run: supabase functions deploy
 
-      # 6. フロントエンドを Vercel へデプロイ
       - name: Deploy Frontend to Vercel
+        id: vercel_deploy
         uses: amondnet/vercel-action@v20
         with:
           vercel-token:       ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id:      ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id:  ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory:  .
-          alias-domains:      pharma-crm-git-main-kosuke-fujimotos-projects.vercel.app
+          alias-domains: pharma-crm-git-main-kosuke-fujimotos-projects.vercel.app
+
+      - name: Capture deployed URL
+        id: capture_url
+        run: |
+          # amondnet/vercel-action が出力する URL を仮に取得（例: preview-url または url output）
+          DEPLOY_URL="${{ steps.vercel_deploy.outputs.url }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "No deployment URL found" >&2
+            exit 1
+          fi
+          echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+      
+      - name: Notify or use deployment URL
+        run: |
+          echo "Frontend is live at: ${{ steps.capture_url.outputs.DEPLOY_URL }}"
