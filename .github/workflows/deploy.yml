@@ -1,4 +1,4 @@
-name: Deploy to Production          # ← ここは変更不要とのご要望どおり据え置き
+name: Deploy to Production
 
 on:
   push:
@@ -8,13 +8,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # ───── 共通環境変数（GitHub Secrets に登録しておく） ─────
     env:
       # Supabase
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF:  ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
-
       # Vercel
       VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
@@ -24,57 +22,50 @@ jobs:
       # 1. リポジトリ取得
       - uses: actions/checkout@v3
 
-      # 2. Supabase CLI 最新版
+      # 2. Supabase CLI
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      # 3. Supabase プロジェクトにリンク
-      - name: Link to Supabase
+      - name: Link & migrate Supabase
         run: |
           supabase link \
             --project-ref "$SUPABASE_PROJECT_REF" \
             --password    "$SUPABASE_DB_PASSWORD"
+          supabase db push
 
-      # 4. マイグレーション適用
-      - name: Apply Supabase migrations
-        run: supabase db push
-
-      # Edge Functions 未利用なのでコメントアウト
-      # - name: Deploy Supabase Edge Functions
-      #   run: supabase functions deploy
-
-      # 5. Node + Vercel CLI セットアップ
+      # 3. Node & Vercel CLI
       - name: Setup Node.js & Vercel CLI
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - run: npm install -g vercel@latest   # vercel CLI をグローバルインストール
+      - run: npm install -g vercel@latest
 
-      # 6. Vercel にデプロイ（URL を $GITHUB_OUTPUT 経由で後続へ渡す）
+      # 4. ❶ Project Settings を取得（--yes で非対話）
+      - name: Pull Vercel project settings
+        run: |
+          vercel pull --yes \
+                      --environment=production \
+                      --token  "$VERCEL_TOKEN" \
+                      --scope  "$VERCEL_ORG_ID" \
+                      --project-id "$VERCEL_PROJECT_ID"
+
+      # 5. ❷ Build（--yes で settings が無い場合も自動取得）
+      - name: Build with Vercel
+        run: |
+          vercel build --prod --yes \
+                       --token "$VERCEL_TOKEN" \
+                       --scope "$VERCEL_ORG_ID"
+
+      # 6. ❸ Deploy（prebuilt artefact）
       - name: Deploy Frontend to Vercel
         id: vercel_deploy
-        shell: bash
         run: |
-          # ─── プロジェクトをリンク（非対話） ───
-          vercel link --project $VERCEL_PROJECT_ID \
-                      --yes \
-                      --token $VERCEL_TOKEN \
-                      --scope $VERCEL_ORG_ID
-
-          # ─── ビルド & デプロイ ───
-          vercel build --prod \
-                       --token $VERCEL_TOKEN \
-                       --scope $VERCEL_ORG_ID
-
           DEPLOY_URL=$(vercel deploy --prebuilt --prod --yes \
-                                     --token $VERCEL_TOKEN \
-                                     --scope $VERCEL_ORG_ID)
-
-          # ─── URL を環境ファイルに書き出し（set-output は使わない） ───
+                                     --token "$VERCEL_TOKEN" \
+                                     --scope "$VERCEL_ORG_ID")
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
-      # 7. デプロイ URL 利用例
+      # 7. デプロイ URL 表示
       - name: Post deployment info
-        run: |
-          echo "🚀 Frontend is live at: ${{ steps.vercel_deploy.outputs.url }}"
+        run: echo "🚀 Frontend is live at: ${{ steps.vercel_deploy.outputs.url }}"
