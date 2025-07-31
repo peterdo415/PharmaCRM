@@ -2,38 +2,52 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    # 全ステップ共通のシークレット
     env:
+      # Supabase
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF:  ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Vercel
+      VERCEL_TOKEN:          ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID:         ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID:     ${{ secrets.VERCEL_PROJECT_ID }}
 
     steps:
       # 1. コード取得
       - uses: actions/checkout@v3
 
-      # 2. Supabase CLI 最新版
+      # 2. Supabase CLI インストール（最新版）
       - uses: supabase/setup-cli@v1
         with:
-          version: latest   # ← 固定を外す
+          version: latest
 
-      # 3. プロジェクトにリンク（非対話モード）
+      # 3. Supabase プロジェクトに非対話リンク
       - name: Link to Supabase Project
         run: |
           supabase link \
             --project-ref "$SUPABASE_PROJECT_REF" \
             --password    "$SUPABASE_DB_PASSWORD"
 
-      # 4. マイグレーション適用
-      - name: Apply Migrations
+      # 4. Supabase マイグレーション適用
+      - name: Apply Supabase Migrations
         run: supabase db push
 
-      # 5. Edge Functions デプロイ
-      # - name: Deploy Edge Functions
+      # 5. Supabase Edge Functions デプロイ
+      # - name: Deploy Supabase Edge Functions
       #   run: supabase functions deploy
+
+      # 6. フロントエンドを Vercel にデプロイ
+      - name: Deploy Frontend to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token:       ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id:      ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id:  ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory:  .
+          alias-domains:      https://pharma-crm-git-main-kosuke-fujimotos-projects.vercel.app/
