@@ -53,14 +53,13 @@ jobs:
       - name: Capture deployed URL
         id: capture_url
         run: |
-          # amondnet/vercel-action が出力する URL を仮に取得（例: preview-url または url output）
-          DEPLOY_URL="${{ steps.vercel_deploy.outputs.url }}"
+          DEPLOY_URL="${{ steps.vercel_deploy.outputs.preview-url }}"
           if [ -z "$DEPLOY_URL" ]; then
             echo "No deployment URL found" >&2
             exit 1
           fi
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
-      
-      - name: Notify or use deployment URL
+
+      - name: Use deployment URL
         run: |
-          echo "Frontend is live at: ${{ steps.capture_url.outputs.DEPLOY_URL }}"
+          echo "Frontend live at: ${{ steps.capture_url.outputs.DEPLOY_URL }}"
