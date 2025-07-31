@@ -4,25 +4,26 @@ on:
   push:
     branches: [main]
 
-# PAT だけでなく Project Ref / DB パスワードもまとめて Job-level env に展開
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # 全ステップ共通のシークレット
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-      SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       # 1. コード取得
       - uses: actions/checkout@v3
 
-      # 2. Supabase CLI インストール（最新版を明示）
+      # 2. Supabase CLI 最新版
       - uses: supabase/setup-cli@v1
         with:
-          version: 1.140.0   # 1.136.3 以降なら OK
+          version: latest   # ← 固定を外す
 
-      # 3. Supabase プロジェクトに非対話リンク
+      # 3. プロジェクトにリンク（非対話モード）
       - name: Link to Supabase Project
         run: |
           supabase link \
@@ -36,7 +37,3 @@ jobs:
       # 5. Edge Functions デプロイ
       - name: Deploy Edge Functions
         run: supabase functions deploy
-
-      # （任意）6. 環境設定をプッシュ
-      # - name: Push Config
-      #   run: supabase config push
