@@ -8,7 +8,7 @@ PharmaCRM は薬局向けの CRM システムです。Supabase を利用した�
 - **フォーム / バリデーション**: React Hook Form, Zod
 - **UI**: Tailwind CSS, Headless UI, Lucide Icons
 - **バックエンド / 認証**: Supabase
-- **テスト**: Playwright
+- **テスト**: Playwright（今後作成予定）
 - **開発ツール**: ESLint, Prettier
 
 ## 主な機能
@@ -25,5 +25,6 @@ npm run dev
 ```
 
 ローカルの開発サーバーが起動し、`http://localhost:5173` でアプリケーションを確認できます。
+
 ## CI/CD
-GitHub Actions のデプロイワークフローは `main` ブランチへの push をトリガーに動作し、Supabase CLI の `supabase db push` によってデータベースを自動更新した後、Vercel にデプロイします。詳細は [.github/workflows/deploy.yml](.github/workflows/deploy.yml) を参照してください。
+GitHub Actions のデプロイワークフローは `main` ブランチへの push をトリガーに動作し、Supabase CLI の `supabase db push` によってデータベースを自動更新した後、Vercel にデプロイします。
