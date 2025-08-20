@@ -26,8 +26,4 @@ npm run dev
 
 ローカルの開発サーバーが起動し、`http://localhost:5173` でアプリケーションを確認できます。
 ## CI/CD
-GitHub Actions を用いた継続的インテグレーションを導入しており、`main` ブランチへのプッシュやプルリクエスト時に以下のコマンドを実行します。
-- `npm run lint`
-- `npm run build`
-
-ワークフロー定義は [.github/workflows/ci.yml](.github/workflows/ci.yml) を参照してください。
+GitHub Actions のデプロイワークフローは `main` ブランチへの push をトリガーに動作し、Supabase CLI の `supabase db push` によってデータベースを自動更新した後、Vercel にデプロイします。詳細は [.github/workflows/deploy.yml](.github/workflows/deploy.yml) を参照してください。
