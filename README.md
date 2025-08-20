@@ -2,6 +2,15 @@
 
 PharmaCRM は薬局向けの CRM システムです。Supabase を利用した認証・データ管理と、React + TypeScript + Tailwind CSS によるモダンな UI を備えています。
 
+## 技術スタック
+- **フロントエンド**: React 18, TypeScript, Vite, React Router
+- **状態管理**: Zustand
+- **フォーム / バリデーション**: React Hook Form, Zod
+- **UI**: Tailwind CSS, Headless UI, Lucide Icons
+- **バックエンド / 認証**: Supabase
+- **テスト**: Playwright
+- **開発ツール**: ESLint, Prettier
+
 ## 主な機能
 - 薬局管理者と薬剤師のユーザー管理
 - ダッシュボードでの統計やお知らせ表示
