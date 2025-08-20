@@ -25,3 +25,9 @@ npm run dev
 ```
 
 ローカルの開発サーバーが起動し、`http://localhost:5173` でアプリケーションを確認できます。
+## CI/CD
+GitHub Actions を用いた継続的インテグレーションを導入しており、`main` ブランチへのプッシュやプルリクエスト時に以下のコマンドを実行します。
+- `npm run lint`
+- `npm run build`
+
+ワークフロー定義は [.github/workflows/ci.yml](.github/workflows/ci.yml) を参照してください。
